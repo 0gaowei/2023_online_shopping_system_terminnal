@@ -1,0 +1,4 @@
+username password nickname phone birthday gender
+test test test 111 2003 1
+user p nick ph bir gen
+yonghuming pass nicheng shoujihao shengri xingbie

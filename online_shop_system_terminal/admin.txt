@@ -1,0 +1,2 @@
+username password nickname
+admin 0000 0GW

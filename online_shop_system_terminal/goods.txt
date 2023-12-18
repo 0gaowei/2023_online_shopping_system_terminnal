@@ -1,0 +1,11 @@
+id   name        price    info    total
+001  snake         10000   bad      1
+002  cat           799     playful  80
+003  fish          299     aquarium 50
+004  bird          149     singing  30
+005  hamster       49      small   20
+006  rabbit        199     fluffy  40
+007  turtle        129     slow    25
+008  snake         69      slithery 15
+009  parrot        179     colorful 35
+010  love          9999     forever  1
