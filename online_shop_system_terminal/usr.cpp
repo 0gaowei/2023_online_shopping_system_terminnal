@@ -3,6 +3,8 @@
 #include <fstream>
 #include <random>
 #include <sstream>
+#include <chrono>
+#include <ctime>
 
 User::User( const string& username, const string& password, const string& nickname,
            const string& phone, const string& birthday, const string& gender)
@@ -102,6 +104,7 @@ void User::welcomeMenu() {
         std::cout << "9. Calculate the total price of the shopping cart items\n";
         std::cout << "10. Select the items in the shopping cart for checkout\n";
         std::cout << "11. Use coupons to checkout\n";
+        std::cout << "12. Analyze Purchase Data\n";
         std::cout << "0. Exit\n";
         std::cout << "============================\n";
         std::cout << "Please input your operation: ";
@@ -156,10 +159,20 @@ void User::welcomeMenu() {
             double oPrice = selectAndCalculate();
             double price = calFinalPrice(oPrice);
             std::cout << "Succeed! The total price of selected goods is: " << price << ".\n";
-        }  else if (choice == 11) {
+        } else if (choice == 11) {
             double oPrice = selectAndCalculate();
             double price = calculateFinalPrice(oPrice);
             std:: cout << "Succeed! The total price is " << price << " .\n";
+        } else if (choice == 12) {
+            string start, end;
+            std::cout << "Enter start time (yyyy-mm-dd): ";
+            std::cin >> start; 
+            start +=  + "-00:00:00";
+            std::cout << "Enter end time (yyyy-mm-dd): "; 
+            std::cin >> end;
+            end +=  + "-00:00:00";
+            // 分析结果
+            analyzePurchase(start, end); 
         } else std::cout << "Invalid selection, please re-enter\n";
     } while (choice != 0);
 }
@@ -360,7 +373,6 @@ double User::calculateOne(string goodId, int quantity) {
     return price;
 }
 
-
 // 计算购物车所有商品总价
 double User::calculatePrice() {
     double totalPrice = 0;
@@ -396,7 +408,15 @@ double User::selectAndCalculate() {
         auto it = shoppingCart.find(goodId);
         if(it != shoppingCart.end()) {
             quantity = it->second;
-            totalPrice += calculateOne(goodId, quantity); 
+            totalPrice += calculateOne(goodId, quantity);
+            // 删除前保存购物历史
+            time_t t = time(nullptr);
+            char timeStr[20]; 
+            // time就是格式化后的时间 "2023-06-23-11:28:29"
+            strftime(timeStr, sizeof(timeStr), "%Y-%m-%d-%H:%M:%S", localtime(&t));  
+            string time(timeStr);
+            recordPurchaseHistory(it->first, it->second, time);
+            //删除
             shoppingCart.erase(it);
         } else {
             std::cout << "There is no product in the shopping cart." << std::endl; 
@@ -405,7 +425,6 @@ double User::selectAndCalculate() {
     
     return totalPrice;
 }
-
 
 // 发放随机优惠券
 void User::giveRandomCoupon() {
@@ -431,7 +450,6 @@ double User::useCoupon(string code) {
     return 1.0; // 没有该优惠券,不打折
 }
 
-
 // 打折
 double User::calculateFinalPrice(double price) {
     string code;
@@ -454,10 +472,113 @@ double User::getDiscount() {
 
 // 折扣价
 double User::calFinalPrice(double originalPrice) {
-  double discount = getDiscount();
-  
-  double price = originalPrice * discount; 
-  
-  // 使用优惠券后计算价格
-  return price; 
+    double discount = getDiscount();
+    
+    double price = originalPrice * discount; 
+    
+    // 使用优惠券后计算价格
+    return price; 
+}
+
+// 保存购物历史
+void User::recordPurchaseHistory(string goodId, int quantity, string time) {
+
+    // 获取商品详细信息
+    std::ifstream file("goods.txt");
+    string id, name, price, info, total;
+    while(file >> id >> name >> price >> info >> total) {
+        if(id == goodId) {
+        break; 
+        }
+    }
+
+    // 创建记录
+    PurchaseItem item {
+        goodId, name, stod(price), info, quantity
+    };
+
+    // 添加到购物历史
+    purchaseHistory[time].push_back(item); 
+
+    // 保存
+    savePurchaseHistory();
+
+}
+
+// 保存历史记录到DB
+void User::savePurchaseHistory() {
+
+  // 文件路径 
+  string hisFilePath = "SHOPCAR/" + username + "_history.txt";
+
+  std::ofstream file(hisFilePath);
+
+  for(auto& h : purchaseHistory) {
+     file << h.first << "\t";  
+     
+     for(auto& item : h.second) {
+        file << item.goodId << " "  
+            << item.name << " "
+            << item.price << " "
+            << item.info << " "
+            << item.quantity << " ";
+     }
+
+     file << "\n";
+  }
+
+  file.close();
+}
+
+// 从DB读取历史记录
+void User::loadPurchaseHistory() {
+    string hisFilePath = "SHOPCAR/" + username + "_history.txt";
+    std::ifstream file(hisFilePath);
+    string time;
+
+    while(getline(file, time)) {
+        vector<PurchaseItem> items;
+
+        while(true) {
+            PurchaseItem item;
+            // 检查文件结束 
+            if(!file) break;
+            file >> item.goodId >> item.name >> item.price >> item.info >> item.quantity;
+            items.push_back(item);
+        }
+
+        purchaseHistory[time] = items;
+    } 
+    file.close();
+}
+
+// 分析购买数据
+void User::analyzePurchase(string startTime, string endTime) {
+
+    // 按商品类别统计购买金额
+    auto result = purchaseByCategory(startTime, endTime);
+
+    // 打印输出结果  
+    for(auto& item : result) {
+        std::cout << item.first << ": " << item.second << std::endl; 
+    }
+}
+
+bool inRange(string time, string begin, string end) {
+    return (begin <= time && time <= end);
+}
+
+map<string, double> User::purchaseByCategory(string begin, string end) {
+    map<string, double> purchaseByInfo;
+    
+    // 遍历指定日期范围的购买记录
+    for(auto& t : purchaseHistory) {
+        if(inRange(t.first, begin, end)) { 
+        for(auto& item : t.second) {
+            purchaseByInfo[item.info] += item.price * item.quantity;  
+        }
+        }
+    }
+
+    return purchaseByInfo;
 }
