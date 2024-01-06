@@ -58,17 +58,37 @@ public:
     double getDiscount(); // 获取全局折扣  
     double calFinalPrice(double originalPrice); // 计算最终价格
 
+    // 保存购买历史记录
+    void recordPurchaseHistory(string goodId, int quantity, string time);
+
+    // 购物历史数据分析
+    void analyzePurchase(string startTime, string endTime); 
+
 private:
+    struct PurchaseItem {
+    string goodId;
+    string name; 
+    double price;
+    string info;
+    int quantity;
+    };
+
     string username;
     string password;
     string nickname;
     string phone;
     string birthday;
     string gender;
+
+    // 保存购物历史
+    map<string, vector<PurchaseItem>> purchaseHistory;  
+
     // 用户拥有的优惠券  
-    std::map<string, double> coupons; 
+    map<string, double> coupons; 
+    
     // 购物车数据结构，商品ID映射到购买数量
-    std::map<string, int> shoppingCart;
+    map<string, int> shoppingCart;
+
     // 全局折扣比例
     double globalDiscount;
 
@@ -77,4 +97,12 @@ private:
 
     // 从文件夹加载购物车数据
     void loadCartFromFile();
+
+    // 保存加载购买历史记录
+    void savePurchaseHistory();
+    void loadPurchaseHistory(); 
+
+    // 购物的商品分类
+    map<string, double> purchaseByCategory(string begin, string end);
+    
 };
